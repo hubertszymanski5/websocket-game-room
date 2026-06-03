@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Room - WebSocket Real-Time Communication</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .button-group button {
+            flex: 1;
+        }
+
+        .room-info {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .room-info h2 {
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: #666;
+            font-weight: 600;
+        }
+
+        .info-value {
+            color: #333;
+            font-weight: 700;
+        }
+
+        .players-list {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .players-list h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .player-item {
+            background: white;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 4px solid #667eea;
+        }
+
+        .player-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .player-role {
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .status-message.show {
+            display: block;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .messages-log {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            font-size: 13px;
+            font-family: monospace;
+        }
+
+        .message-item {
+            padding: 8px;
+            margin-bottom: 8px;
+            background: white;
+            border-radius: 4px;
+            border-left: 3px solid #667eea;
+        }
+
+        .message-time {
+            color: #999;
+            font-size: 11px;
+        }
+
+        .message-content {
+            color: #333;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎮 Game Room</h1>
+            <p>Real-time multiplayer gaming with WebSocket</p>
+        </div>
+
+        <div id="statusMessage" class="status-message"></div>
+
+        <!-- Login Section -->
+        <div id="loginSection" class="section active">
+            <div class="form-group">
+                <label for="playerName">Enter your name:</label>
+                <input type="text" id="playerName" placeholder="Your name" maxlength="20">
+            </div>
+            <div class="button-group">
+                <button onclick="createRoom()">Create Room</button>
+                <button onclick="showJoinSection()">Join Room</button>
+            </div>
+        </div>
+
+        <!-- Join Section -->
+        <div id="joinSection" class="section">
+            <div class="form-group">
+                <label for="joinPlayerName">Enter your name:</label>
+                <input type="text" id="joinPlayerName" placeholder="Your name" maxlength="20">
+            </div>
+            <div class="form-group">
+                <label for="roomCode">Room Code:</label>
+                <input type="text" id="roomCode" placeholder="4-letter code" maxlength="4" style="text-transform: uppercase;">
+            </div>
+            <div class="button-group">
+                <button onclick="joinRoom()">Join</button>
+                <button onclick="showLoginSection()">Back</button>
+            </div>
+        </div>
+
+        <!-- Game Room Section -->
+        <div id="gameSection" class="section">
+            <div class="room-info">
+                <h2>Room Information</h2>
+                <div class="info-row">
+                    <span class="info-label">Room Code:</span>
+                    <span class="info-value" id="roomCodeDisplay">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Your ID:</span>
+                    <span class="info-value" id="playerIdDisplay">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Your Role:</span>
+                    <span class="info-value" id="roleDisplay">-</span>
+                </div>
+            </div>
+
+            <div class="players-list">
+                <h3>Players in Room</h3>
+                <div id="playersList"></div>
+            </div>
+
+            <div class="messages-log" id="messageLog"></div>
+
+            <div class="button-group">
+                <button id="startGameBtn" onclick="startGame()" style="display: none;">Start Game</button>
+                <button onclick="leaveRoom()">Leave Room</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let stompClient = null;
+        let currentPlayer = null;
+        let currentRoom = null;
+
+        // API Configuration
+        const API_URL = 'http://localhost:8080/api/rooms';
+        const WS_URL = 'ws://localhost:8080/ws';
+
+        // UI Functions
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+        }
+
+        function showLoginSection() {
+            showSection('loginSection');
+        }
+
+        function showJoinSection() {
+            showSection('joinSection');
+        }
+
+        function showGameSection() {
+            showSection('gameSection');
+        }
+
+        function showMessage(message, type = 'info') {
+            const messageEl = document.getElementById('statusMessage');
+            messageEl.textContent = message;
+            messageEl.className = 'status-message show ' + type;
+            setTimeout(() => messageEl.classList.remove('show'), 5000);
+        }
+
+        function addLog(message) {
+            const logEl = document.getElementById('messageLog');
+            const time = new Date().toLocaleTimeString();
+            const item = document.createElement('div');
+            item.className = 'message-item';
+            item.innerHTML = '<span class="message-time">[' + time + ']</span><div class="message-content">' + message + '</div>';
+            logEl.appendChild(item);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function updatePlayersList(players) {
+            const listEl = document.getElementById('playersList');
+            listEl.innerHTML = '';
+            if (players && players.length > 0) {
+                players.forEach(player => {
+                    const item = document.createElement('div');
+                    item.className = 'player-item';
+                    item.innerHTML = '<span class="player-name">' + player.name + '</span><span class="player-role">' + player.role + '</span>';
+                    listEl.appendChild(item);
+                });
+            }
+        }
+
+        // WebSocket Functions
+        function connectWebSocket() {
+            const socket = new SockJS(WS_URL);
+            stompClient = Stomp.over(socket);
+            stompClient.connect({}, function(frame) {
+                addLog('Connected to WebSocket');
+                subscribeToRoom();
+            }, function(error) {
+                showMessage('WebSocket connection failed', 'error');
+                addLog('Connection error: ' + error);
+            });
+        }
+
+        function subscribeToRoom() {
+            if (!currentRoom || !stompClient) return;
+
+            stompClient.subscribe('/topic/room/' + currentRoom.code, function(message) {
+                const data = JSON.parse(message.body);
+                handleServerMessage(data);
+            });
+
+            stompClient.subscribe('/user/queue/role-assignment', function(message) {
+                const data = JSON.parse(message.body);
+                currentPlayer.role = data.role;
+                updatePlayerInfo();
+                addLog('Role assigned: ' + data.role);
+            });
+
+            stompClient.subscribe('/topic/error/' + currentRoom.code, function(message) {
+                const data = JSON.parse(message.body);
+                showMessage(data.message, 'error');
+            });
+        }
+
+        function handleServerMessage(message) {
+            switch(message.type) {
+                case 'ROOM_CREATED':
+                    currentRoom = { code: message.roomCode };
+                    updatePlayerInfo();
+                    showMessage('Room created: ' + message.roomCode, 'success');
+                    addLog('Room created with code: ' + message.roomCode);
+                    break;
+                case 'PLAYER_JOINED':
+                    if (message.players) {
+                        updatePlayersList(message.players);
+                    }
+                    addLog(message.message);
+                    break;
+                case 'GAME_STARTED':
+                    showMessage('Game started!', 'success');
+                    addLog('Game started!');
+                    document.getElementById('startGameBtn').style.display = 'none';
+                    break;
+                case 'PLAYER_LEFT':
+                    addLog(message.message);
+                    break;
+                default:
+                    addLog('Message: ' + message.message);
+            }
+        }
+
+        function updatePlayerInfo() {
+            if (currentPlayer && currentRoom) {
+                document.getElementById('roomCodeDisplay').textContent = currentRoom.code;
+                document.getElementById('playerIdDisplay').textContent = currentPlayer.id || 'N/A';
+                document.getElementById('roleDisplay').textContent = currentPlayer.role || 'NORMAL';
+            }
+        }
+
+        // API Functions
+        async function createRoom() {
+            const name = document.getElementById('playerName').value.trim();
+            if (!name) {
+                showMessage('Please enter your name', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(API_URL + '/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ playerName: name })
+                });
+
+                if (response.ok) {
+                    const room = await response.json();
+                    currentPlayer = { name: name, id: room.adminId, role: 'ADMIN' };
+                    currentRoom = room;
+                    connectWebSocket();
+                    showGameSection();
+                    updatePlayerInfo();
+                    addLog('Welcome ' + name + '! You created room: ' + room.code);
+                    document.getElementById('startGameBtn').style.display = 'block';
+                } else {
+                    showMessage('Failed to create room', 'error');
+                }
+            } catch (error) {
+                showMessage('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function joinRoom() {
+            const name = document.getElementById('joinPlayerName').value.trim();
+            const code = document.getElementById('roomCode').value.trim().toUpperCase();
+
+            if (!name || !code) {
+                showMessage('Please enter name and room code', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(API_URL + '/join', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ playerName: name, roomCode: code })
+                });
+
+                if (response.ok) {
+                    const room = await response.json();
+                    currentPlayer = { name: name, role: 'NORMAL' };
+                    currentRoom = room;
+                    connectWebSocket();
+                    showGameSection();
+                    updatePlayerInfo();
+                    addLog('Welcome ' + name + '! You joined room: ' + code);
+                } else {
+                    showMessage('Room not found', 'error');
+                }
+            } catch (error) {
+                showMessage('Error: ' + error.message, 'error');
+            }
+        }
+
+        function startGame() {
+            if (!stompClient || !currentRoom) return;
+
+            const message = {
+                type: 'START_GAME',
+                playerId: currentPlayer.id,
+                roomCode: currentRoom.code
+            };
+
+            stompClient.send('/app/start-game', {}, JSON.stringify(message));
+        }
+
+        function leaveRoom() {
+            if (stompClient && currentRoom) {
+                const message = {
+                    type: 'LEAVE_ROOM',
+                    playerId: currentPlayer.id,
+                    roomCode: currentRoom.code
+                };
+                stompClient.send('/app/leave-room', {}, JSON.stringify(message));
+                stompClient.disconnect(function() {
+                    showLoginSection();
+                    currentPlayer = null;
+                    currentRoom = null;
+                });
+            }
+        }
+    </script>
+
+    <!-- SockJS and Stomp libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</body>
+</html>
